@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.data/
+out/
+dist/
+.env*
+!.env.example
+*.log
+.DS_Store
+
+*.tsbuildinfo
+
+# User uploads
+/public/uploads/
+.data/

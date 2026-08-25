@@ -1,0 +1,1 @@
+import { cookies } from 'next/headers';import { NextResponse } from 'next/server';import { AUTH_COOKIE,readSessionToken } from '@/lib/auth';export async function GET(){const store=await cookies();const user=await readSessionToken(store.get(AUTH_COOKIE)?.value);if(!user)return NextResponse.json({error:'NON_AUTHENTIFIE'},{status:401});return NextResponse.json({data:{user}})}
