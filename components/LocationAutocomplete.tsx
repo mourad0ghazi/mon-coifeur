@@ -56,7 +56,7 @@ export function LocationAutocomplete({
   mode?: Mode;
   value: string;
   onChange: (val: string) => void;
-  onPlace?: (val: { label: string; secondary?: string; lat?: number; lng?: number }) => void;
+  onPlace?: (val: { label: string; secondary?: string; lat?: number; lng?: number; placeId?: string }) => void;
   placeholder?: string;
   icon?: React.ReactNode;
   withGeolocation?: boolean;
@@ -140,8 +140,23 @@ export function LocationAutocomplete({
   function pick(s: Suggestion) {
     setInput(s.label);
     onChange(s.label);
-    onPlace?.({ label: s.label, secondary: s.secondary, lat: s.lat, lng: s.lng });
     setOpen(false);
+    // Les prédictions Google contiennent un place_id. On le géocode ici pour
+    // transmettre aussi les coordonnées exactes au formulaire partenaire.
+    if (s.source === 'google' && s.placeId && geocoderRef.current) {
+      geocoderRef.current.geocode({ placeId: s.placeId }, (results: any[], status: string) => {
+        const location = results?.[0]?.geometry?.location;
+        onPlace?.({
+          label: s.label,
+          secondary: s.secondary,
+          placeId: s.placeId,
+          lat: status === 'OK' && location ? location.lat() : undefined,
+          lng: status === 'OK' && location ? location.lng() : undefined,
+        });
+      });
+      return;
+    }
+    onPlace?.({ label: s.label, secondary: s.secondary, lat: s.lat, lng: s.lng, placeId: s.placeId });
   }
 
   function useMyLocation() {

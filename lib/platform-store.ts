@@ -39,6 +39,15 @@ CREATE TABLE IF NOT EXISTS partner_applications (
   checks TEXT NOT NULL DEFAULT '[]',
   user_id TEXT,
   photos TEXT NOT NULL DEFAULT '[]',
+  certificate_photo TEXT,
+  chair_count INTEGER NOT NULL DEFAULT 1,
+  staff TEXT NOT NULL DEFAULT '[]',
+  service_catalog TEXT NOT NULL DEFAULT '[]',
+  opening_hours TEXT NOT NULL DEFAULT '[]',
+  place_id TEXT,
+  latitude REAL,
+  longitude REAL,
+  validated_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -85,12 +94,38 @@ CREATE TABLE IF NOT EXISTS audit_log (
   meta TEXT,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS partner_notifications (
+  id TEXT PRIMARY KEY,
+  application_id TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT NOT NULL,
+  provider_id TEXT,
+  created_at TEXT NOT NULL,
+  sent_at TEXT
+);
 `);
 
-// Migration pour les bases existantes avant l'ajout de la colonne photos.
+// Migrations légères pour les dossiers créés avant le formulaire détaillé.
 {
   const pcols = new Set((db.prepare("PRAGMA table_info(partner_applications)").all() as any[]).map((c) => c.name));
-  if (!pcols.has('photos')) db.exec('ALTER TABLE partner_applications ADD COLUMN photos TEXT NOT NULL DEFAULT \'[]\'');
+  const migrations: [string, string][] = [
+    ['photos', "TEXT NOT NULL DEFAULT '[]'"],
+    ['certificate_photo', 'TEXT'],
+    ['chair_count', 'INTEGER NOT NULL DEFAULT 1'],
+    ['staff', "TEXT NOT NULL DEFAULT '[]'"],
+    ['service_catalog', "TEXT NOT NULL DEFAULT '[]'"],
+    ['opening_hours', "TEXT NOT NULL DEFAULT '[]'"],
+    ['place_id', 'TEXT'],
+    ['latitude', 'REAL'],
+    ['longitude', 'REAL'],
+    ['validated_at', 'TEXT'],
+  ];
+  for (const [name, definition] of migrations) {
+    if (!pcols.has(name)) db.exec(`ALTER TABLE partner_applications ADD COLUMN ${name} ${definition}`);
+  }
 }
 
 // ---- Seed partner applications (visible dans /admin/validations) ----
@@ -175,6 +210,15 @@ export type PartnerApplication = {
   checks: boolean[];
   user_id: string | null;
   photos: string[];
+  certificate_photo: string | null;
+  chair_count: number;
+  staff: { name: string; specialty?: string; hours: string }[];
+  service_catalog: { name: string; price: number; duration: number }[];
+  opening_hours: { day: string; on: boolean; open?: string; close?: string; breakStart?: string; breakEnd?: string }[];
+  place_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  validated_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -187,6 +231,15 @@ function rowToApp(row: any): PartnerApplication {
     specialties: JSON.parse(row.specialties || '[]'),
     checks: JSON.parse(row.checks || '[]'),
     photos: JSON.parse(row.photos || '[]'),
+    certificate_photo: row.certificate_photo || null,
+    chair_count: Number(row.chair_count || 1),
+    staff: JSON.parse(row.staff || '[]'),
+    service_catalog: JSON.parse(row.service_catalog || '[]'),
+    opening_hours: JSON.parse(row.opening_hours || '[]'),
+    place_id: row.place_id || null,
+    latitude: row.latitude == null ? null : Number(row.latitude),
+    longitude: row.longitude == null ? null : Number(row.longitude),
+    validated_at: row.validated_at || null,
   };
 }
 
@@ -203,6 +256,14 @@ export function createPartnerApplication(input: {
   specialties: string[];
   photos: string[];
   photosCount: number;
+  certificatePhoto: string;
+  chairCount: number;
+  staff: { name: string; specialty?: string; hours: string }[];
+  serviceCatalog: { name: string; price: number; duration: number }[];
+  openingHours: { day: string; on: boolean; open?: string; close?: string; breakStart?: string; breakEnd?: string }[];
+  placeId?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   consent: boolean;
   legalConsent: boolean;
 }): PartnerApplication {
@@ -210,19 +271,27 @@ export function createPartnerApplication(input: {
   const ref = 'HLQ-P-' + Math.floor(2400 + Math.random() * 7000);
   const ts = new Date().toISOString();
   const risk: PartnerApplication['risk'] =
-    input.specialties.length >= 2 && input.photos.length >= 3 ? 'FAIBLE' : 'MOYEN';
+    input.specialties.length >= 2 && input.photos.length >= 3 && Boolean(input.certificatePhoto) && input.serviceCatalog.length > 0 && input.staff.length > 0 ? 'FAIBLE' : 'MOYEN';
+  const coordinatesOk = input.latitude != null && input.longitude != null;
+  const checks = [
+    Boolean(input.certificatePhoto),
+    input.photos.length >= 3,
+    true,
+    false,
+    Boolean(input.address) && coordinatesOk,
+    input.serviceCatalog.length > 0 && input.staff.length > 0 && input.openingHours.length > 0,
+  ];
   db.prepare(
     `INSERT INTO partner_applications
-    (id,reference,first_name,last_name,phone,experience,salon_name,city,neighborhood,address,landmark,specialties,photos_count,consent,legal_consent,status,risk,checks,photos,created_at,updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    (id,reference,first_name,last_name,phone,experience,salon_name,city,neighborhood,address,landmark,specialties,photos_count,consent,legal_consent,status,risk,checks,photos,certificate_photo,chair_count,staff,service_catalog,opening_hours,place_id,latitude,longitude,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
     id, ref, input.firstName, input.lastName, input.phone, input.experience,
     input.salonName, input.city, input.neighborhood, input.address || null, input.landmark || null,
     JSON.stringify(input.specialties), input.photos.length, input.consent ? 1 : 0, input.legalConsent ? 1 : 0,
-    'EN_ATTENTE', risk,
-    JSON.stringify([true, true, input.photos.length >= 3, false, !!input.address, false]),
-    JSON.stringify(input.photos),
-    ts, ts
+    'EN_ATTENTE', risk, JSON.stringify(checks), JSON.stringify(input.photos), input.certificatePhoto,
+    input.chairCount, JSON.stringify(input.staff), JSON.stringify(input.serviceCatalog), JSON.stringify(input.openingHours),
+    input.placeId || null, input.latitude ?? null, input.longitude ?? null, ts, ts
   );
   return rowToApp(db.prepare('SELECT * FROM partner_applications WHERE id=?').get(id));
 }
@@ -248,6 +317,11 @@ export function getPartnerApplication(id: string): PartnerApplication | null {
   return row ? rowToApp(row) : null;
 }
 
+export function getPartnerApplicationByUserId(userId: string): PartnerApplication | null {
+  const row = db.prepare('SELECT * FROM partner_applications WHERE user_id=? ORDER BY updated_at DESC LIMIT 1').get(userId);
+  return row ? rowToApp(row) : null;
+}
+
 export function updatePartnerApplication(
   id: string,
   patch: Partial<Pick<PartnerApplication, 'status' | 'internal_note' | 'checks'>>
@@ -257,9 +331,11 @@ export function updatePartnerApplication(
   const status = patch.status ?? current.status;
   const note = patch.internal_note ?? current.internal_note;
   const checks = patch.checks ?? current.checks;
+  const ts = new Date().toISOString();
+  const validatedAt = status === 'VALIDE' ? current.validated_at || ts : status === 'EN_ATTENTE' ? null : current.validated_at;
   db.prepare(
-    'UPDATE partner_applications SET status=?, internal_note=?, checks=?, updated_at=? WHERE id=?'
-  ).run(status, note, JSON.stringify(checks), new Date().toISOString(), id);
+    'UPDATE partner_applications SET status=?, internal_note=?, checks=?, validated_at=?, updated_at=? WHERE id=?'
+  ).run(status, note, JSON.stringify(checks), validatedAt, ts, id);
   return getPartnerApplication(id);
 }
 
@@ -488,6 +564,23 @@ export function listAudit(limit = 50) {
     ...r,
     meta: r.meta ? JSON.parse(r.meta) : null,
   }));
+}
+
+export function recordPartnerNotification(input: {
+  applicationId: string;
+  phone: string;
+  type: string;
+  message: string;
+  status: string;
+  providerId?: string | null;
+  sentAt?: string | null;
+}) {
+  const id = randomUUID();
+  db.prepare(
+    `INSERT INTO partner_notifications(id,application_id,phone,type,message,status,provider_id,created_at,sent_at)
+     VALUES(?,?,?,?,?,?,?,?,?)`
+  ).run(id, input.applicationId, input.phone, input.type, input.message, input.status, input.providerId || null, new Date().toISOString(), input.sentAt || null);
+  return { id, status: input.status, providerId: input.providerId || null };
 }
 
 export function platformStats() {

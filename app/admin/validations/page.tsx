@@ -3,23 +3,28 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { DashboardShell } from '@/components/DashboardShell';
 import {
-  Check, CheckCircle2, ChevronRight, Clock3, ExternalLink, MapPin,
-  MessageCircle, Phone, Search, ShieldCheck, X, XCircle,
+  Camera, Check, CheckCircle2, ChevronRight, Clock3, ExternalLink, MapPin,
+  MessageCircle, Phone, Scissors, Search, ShieldCheck, Store, UserRound, X, XCircle,
 } from 'lucide-react';
 
 type App = {
   id: string; reference: string; first_name: string; last_name: string; phone: string;
   experience: string; salon_name: string; city: string; neighborhood: string;
   address: string | null; landmark: string | null; specialties: string[]; photos_count: number;
+  photos: string[]; certificate_photo: string | null; chair_count: number;
+  staff: { name: string; specialty?: string; hours: string }[];
+  service_catalog: { name: string; price: number; duration: number }[];
+  opening_hours: { day: string; on: boolean; open?: string; close?: string; breakStart?: string; breakEnd?: string }[];
+  place_id: string | null; latitude: number | null; longitude: number | null; validated_at: string | null;
   status: 'EN_ATTENTE' | 'VALIDE' | 'REFUSE' | 'INFOS_DEMANDEES';
   risk: 'FAIBLE' | 'MOYEN' | 'ELEVE'; internal_note: string | null;
   checks: boolean[]; created_at: string;
 };
 
-const defaultChecks = [true, true, true, false, true, true];
+const defaultChecks = [false, false, true, false, false, false];
 const checkLabels = [
-  'Photo de profil réelle', 'Minimum 3 réalisations personnelles', 'WhatsApp vérifié',
-  'Appel de vérification effectué', 'Adresse localisable', 'Services et horaires renseignés',
+  'Certification de coiffure lisible', 'Minimum 3 réalisations personnelles', 'WhatsApp vérifié',
+  'Appel de vérification effectué', 'Adresse exacte localisable', 'Équipe, services et horaires renseignés',
 ];
 
 export default function Validations() {
@@ -65,7 +70,15 @@ export default function Validations() {
     if (!res.ok) { flash('Action impossible'); return; }
     const json = await res.json();
     setApps((list) => list.map((a) => (a.id === selected.id ? json.data.application : a)));
-    flash(status === 'VALIDE' ? 'Compte validé. WhatsApp envoyé.' : status === 'REFUSE' ? 'Dossier refusé.' : 'Informations demandées.');
+    const notificationStatus = json.meta?.notification?.status;
+    const validationMessage = notificationStatus === 'ENVOYE'
+      ? 'Compte validé. WhatsApp envoyé.'
+      : notificationStatus === 'DEMO_A_ENVOYER'
+        ? 'Compte validé. Notification WhatsApp enregistrée en mode démo.'
+        : notificationStatus === 'ECHEC'
+          ? 'Compte validé, mais l’envoi WhatsApp a échoué.'
+          : 'Compte validé.';
+    flash(status === 'VALIDE' ? validationMessage : status === 'REFUSE' ? 'Dossier refusé.' : 'Informations demandées.');
   }
 
   const pendingCount = apps.filter((a) => a.status === 'EN_ATTENTE').length;
@@ -117,18 +130,21 @@ export default function Validations() {
 
             <section className="identity-grid">
               <div><small>WHATSAPP</small><p><Phone /> {selected.phone}</p><span><Check /> À vérifier par OTP</span></div>
-              <div><small>LOCALISATION</small><p><MapPin /> {selected.address || 'Adresse à préciser'}</p><a>{selected.landmark || 'Voir sur la carte'} <ExternalLink /></a></div>
+              <div><small>LOCALISATION</small><p><MapPin /> {selected.address || 'Adresse à préciser'}</p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${selected.address || ''}, ${selected.neighborhood}, ${selected.city}, Maroc`)}`} target="_blank" rel="noreferrer">{selected.landmark || 'Ouvrir l’adresse sur la carte'} <ExternalLink /></a></div>
               <div><small>EXPÉRIENCE</small><p>{selected.experience} d’expérience</p><span>{selected.specialties.join(' · ')}</span></div>
             </section>
 
             <section className="submitted-media">
-              <div className="detail-title"><div><small>PHOTOS SOUMISES</small><h3>{selected.photos_count} fichiers</h3></div></div>
-              <div>
-                <figure><Image src="/images/cut-curls.jpg" fill alt="Photo de profil" /><figcaption>PROFIL</figcaption></figure>
-                <figure><Image src="/images/salon-mouad-hero.jpg" fill alt="Salon" /><figcaption>SALON</figcaption></figure>
-                <figure><Image src="/images/cut-fade.jpg" fill alt="Coupe" /><figcaption>COUPE 1</figcaption></figure>
-                <figure><Image src="/images/cut-beard.jpg" fill alt="Coupe" /><figcaption>COUPE 2</figcaption></figure>
+              <div className="detail-title"><div><small>DOCUMENTS RÉELS DU DOSSIER</small><h3>{selected.photos.length} réalisation(s) · certificat séparé</h3></div><b>{selected.certificate_photo ? 'Certificat reçu' : 'Certificat manquant'}</b></div>
+              <div className="certificate-media-row">
+                {selected.certificate_photo ? <figure className="certificate-media"><Image src={selected.certificate_photo} fill alt="Certification de coiffure" sizes="220px" /><figcaption>CERTIFICATION DE COIFFURE</figcaption></figure> : <div className="missing-document"><ShieldCheck /><b>Certification non fournie</b><small>La validation reste bloquée jusqu’à réception du document.</small></div>}
+                <div className="submitted-photo-grid">{selected.photos.length ? selected.photos.map((photo, index) => <figure key={`${photo}-${index}`}><Image src={photo} fill alt={`Réalisation ${index + 1}`} sizes="150px" /><figcaption>RÉALISATION {index + 1}</figcaption></figure>) : <div className="missing-document"><Camera /><b>Aucune réalisation enregistrée</b><small>Le coiffeur doit fournir au moins 3 photos.</small></div>}</div>
               </div>
+            </section>
+
+            <section className="application-detail-section">
+              <div className="detail-title"><div><small>INFORMATIONS DÉCLARÉES</small><h3>Salon, équipe, prestations et horaires</h3></div><b>{selected.chair_count} chaise(s)</b></div>
+              <div className="application-detail-grid"><div><Store /><span><b>Capacité</b><small>{selected.chair_count} chaise(s) · {selected.staff.length} coiffeur(s) renseigné(s)</small></span></div><div><Scissors /><span><b>Services & tarifs</b><small>{selected.service_catalog.length ? selected.service_catalog.map((item) => `${item.name} · ${item.price} MAD / ${item.duration} min`).join(' · ') : 'À compléter'}</small></span></div><div><UserRound /><span><b>Équipe</b><small>{selected.staff.length ? selected.staff.map((member) => `${member.name}${member.specialty ? ` · ${member.specialty}` : ''} (${member.hours})`).join(' · ') : 'À compléter'}</small></span></div><div><Clock3 /><span><b>Horaires du salon</b><small>{selected.opening_hours.filter((day) => day.on).map((day) => `${day.day} ${day.open || ''}–${day.close || ''}`).join(' · ') || 'À compléter'}</small></span></div></div>
             </section>
 
             <section className="checklist">

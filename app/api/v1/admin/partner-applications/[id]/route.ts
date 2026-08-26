@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/api-guard';
 import { getPartnerApplication, updatePartnerApplication, writeAudit } from '@/lib/platform-store';
 import { activateCoiffeurForApplication } from '@/lib/auth-store';
+import { notifyPartnerValidated, type PartnerNotificationResult } from '@/lib/partner-notifications';
 import { z } from 'zod';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,9 +30,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const current = getPartnerApplication(id);
   if (!current) return NextResponse.json({ error: 'INTROUVABLE' }, { status: 404 });
 
+  const shouldNotify = parsed.data.status === 'VALIDE' && current.status !== 'VALIDE';
   // Quand l'admin valide un coiffeur, on crée/active son compte EN PREMIER
   // (l'activation peut échouer si le téléphone est déjà utilisé par un client).
-  if (parsed.data.status === 'VALIDE' && current.status !== 'VALIDE') {
+  if (shouldNotify) {
     try {
       activateCoiffeurForApplication({
         id: current.id,
@@ -56,13 +58,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     internal_note: parsed.data.internalNote,
     checks: parsed.data.checks,
   })!;
+  let notification: PartnerNotificationResult | undefined;
+  if (shouldNotify) notification = await notifyPartnerValidated(current);
 
   writeAudit({
     actorId: guard.user.sub,
     actorName: guard.user.name,
     action: parsed.data.status === 'VALIDE' ? 'PARTNER_VALIDATED' : 'PARTNER_APPLICATION_UPDATED',
     target: app.reference,
-    meta: { status: parsed.data.status },
+    meta: { status: parsed.data.status, notification: notification?.status || null },
   });
-  return NextResponse.json({ data: { application: app } });
+  return NextResponse.json({ data: { application: app }, meta: { notification: notification || null } });
 }
