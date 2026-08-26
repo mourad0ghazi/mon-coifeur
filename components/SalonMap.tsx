@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, LocateFixed, MapPin } from 'lucide-react';
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react';
+import { ExternalLink, LocateFixed, MapPin, Minus, Plus, RotateCcw } from 'lucide-react';
 
 type MapSalon = {
   id: string;
@@ -9,6 +10,7 @@ type MapSalon = {
   name: string;
   neighborhood: string;
   city: string;
+  address?: string;
   latitude: number;
   longitude: number;
   openStatus?: { open: boolean; label: string };
@@ -24,6 +26,12 @@ type Props = {
 };
 
 type MapProvider = 'loading' | 'google' | 'openstreetmap';
+type View = { center: Position; zoom: number };
+type MapSize = { width: number; height: number };
+
+const TILE_SIZE = 256;
+const MIN_ZOOM = 11;
+const MAX_ZOOM = 18;
 
 let googleMapsPromise: Promise<any> | null = null;
 
@@ -54,22 +62,39 @@ function mapCenter(salons: MapSalon[], userLocation?: Position | null): Position
   return { lat: 33.6148, lng: -7.5128 };
 }
 
-function bboxFor(center: Position) {
-  // Une emprise assez large pour voir les quartiers nord de Casablanca.
-  const latDelta = 0.055;
-  const lngDelta = 0.085;
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function worldSize(zoom: number) {
+  return TILE_SIZE * 2 ** zoom;
+}
+
+// Projection Web Mercator : les pins et les tuiles utilisent exactement la
+// même projection, donc ils restent collés à leur adresse pendant le déplacement.
+function project(position: Position, zoom: number) {
+  const size = worldSize(zoom);
+  const lat = clamp(position.lat, -85.05112878, 85.05112878);
+  const sin = Math.sin((lat * Math.PI) / 180);
   return {
-    west: center.lng - lngDelta,
-    south: center.lat - latDelta,
-    east: center.lng + lngDelta,
-    north: center.lat + latDelta,
+    x: ((position.lng + 180) / 360) * size,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size,
   };
 }
 
-function pinPosition(salon: MapSalon, bbox: ReturnType<typeof bboxFor>) {
-  const left = ((salon.longitude - bbox.west) / (bbox.east - bbox.west)) * 100;
-  const top = ((bbox.north - salon.latitude) / (bbox.north - bbox.south)) * 100;
-  return { left: `${left}%`, top: `${top}%` };
+function unproject(point: { x: number; y: number }, zoom: number): Position {
+  const size = worldSize(zoom);
+  const lng = (point.x / size) * 360 - 180;
+  const y = 0.5 - point.y / size;
+  const lat = (360 / Math.PI) * Math.atan(Math.exp(y * 2 * Math.PI)) - 90;
+  return { lat: clamp(lat, -85.05112878, 85.05112878), lng };
+}
+
+function longitudeDelta(pointX: number, centerX: number, size: number) {
+  let delta = pointX - centerX;
+  if (delta > size / 2) delta -= size;
+  if (delta < -size / 2) delta += size;
+  return delta;
 }
 
 function googleMarkerIcon(google: any, color: string, selected: boolean) {
@@ -83,6 +108,147 @@ function googleMarkerIcon(google: any, color: string, selected: boolean) {
   };
 }
 
+function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center }: Props & { center: Position }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(null);
+  const contextRef = useRef('');
+  const [size, setSize] = useState<MapSize>({ width: 800, height: 625 });
+  const [view, setView] = useState<View>({ center, zoom: salons.length === 1 ? 15 : 13 });
+  const [dragging, setDragging] = useState(false);
+
+  const contextKey = `${userLocation?.lat ?? ''},${userLocation?.lng ?? ''}|${salons.map((salon) => `${salon.id}:${salon.latitude}:${salon.longitude}`).join('|')}`;
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect?.width && rect?.height) setSize({ width: rect.width, height: rect.height });
+    });
+    observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (contextRef.current === contextKey) return;
+    contextRef.current = contextKey;
+    setView({ center, zoom: salons.length === 1 ? 15 : 13 });
+  }, [center, contextKey, salons.length]);
+
+  useEffect(() => {
+    const selected = salons.find((salon) => salon.id === selectedId);
+    if (!selected) return;
+    setView((current) => ({ ...current, center: { lat: selected.latitude, lng: selected.longitude } }));
+  }, [selectedId, salons]);
+
+  function changeZoom(delta: number) {
+    setView((current) => ({ ...current, zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM) }));
+  }
+
+  function resetView() {
+    setView({ center, zoom: salons.length === 1 ? 15 : 13 });
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    setDragging(true);
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    setView((current) => {
+      const centerPoint = project(current.center, current.zoom);
+      return { ...current, center: unproject({ x: centerPoint.x - dx, y: centerPoint.y - dy }, current.zoom) };
+    });
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* already released */ }
+      dragRef.current = null;
+    }
+    setDragging(false);
+  }
+
+  function onWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    changeZoom(event.deltaY < 0 ? 1 : -1);
+  }
+
+  const centerPoint = project(view.center, view.zoom);
+  const topLeft = { x: centerPoint.x - size.width / 2, y: centerPoint.y - size.height / 2 };
+  const firstTileX = Math.floor(topLeft.x / TILE_SIZE) - 1;
+  const lastTileX = Math.floor((topLeft.x + size.width) / TILE_SIZE) + 1;
+  const firstTileY = Math.floor(topLeft.y / TILE_SIZE) - 1;
+  const lastTileY = Math.floor((topLeft.y + size.height) / TILE_SIZE) + 1;
+  const tiles = [];
+  const tileCount = 2 ** view.zoom;
+  for (let tileX = firstTileX; tileX <= lastTileX; tileX += 1) {
+    for (let tileY = firstTileY; tileY <= lastTileY; tileY += 1) {
+      if (tileY < 0 || tileY >= tileCount) continue;
+      const wrappedX = ((tileX % tileCount) + tileCount) % tileCount;
+      tiles.push({ tileX, tileY, wrappedX });
+    }
+  }
+
+  function markerPosition(salon: MapSalon) {
+    const point = project({ lat: salon.latitude, lng: salon.longitude }, view.zoom);
+    return {
+      left: size.width / 2 + longitudeDelta(point.x, centerPoint.x, worldSize(view.zoom)),
+      top: size.height / 2 + point.y - centerPoint.y,
+    };
+  }
+
+  const selected = salons.find((salon) => salon.id === selectedId);
+  const selectedPosition = selected ? markerPosition(selected) : null;
+  const userPosition = userLocation ? markerPosition({ ...salons[0], id: '__user__', name: 'Ta position', slug: '', latitude: userLocation.lat, longitude: userLocation.lng }) : null;
+
+  return (
+    <div
+      ref={mapRef}
+      className={`osm-interactive-map${dragging ? ' dragging' : ''}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onWheel={onWheel}
+      onDoubleClick={() => changeZoom(1)}
+      aria-label="Carte OpenStreetMap interactive des salons"
+    >
+      <div className="osm-tile-layer" style={{ left: -topLeft.x, top: -topLeft.y }}>
+        {tiles.map((tile) => <img key={`${view.zoom}-${tile.tileX}-${tile.tileY}`} className="osm-tile" src={`https://tile.openstreetmap.org/${view.zoom}/${tile.wrappedX}/${tile.tileY}.png`} alt="" draggable={false} style={{ left: tile.tileX * TILE_SIZE, top: tile.tileY * TILE_SIZE }} />)}
+      </div>
+
+      <div className="osm-interactive-markers">
+        {salons.map((salon) => {
+          const position = markerPosition(salon);
+          const selectedMarker = salon.id === selectedId;
+          return <button key={salon.id} className={`osm-interactive-pin ${salon.openStatus?.open ? 'open' : 'closed'}${selectedMarker ? ' selected' : ''}`} style={{ left: position.left, top: position.top }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); if (!dragRef.current?.moved) onSelect(salon.id); }} title={`${salon.name} · ${salon.openStatus?.label || 'Statut indisponible'}`} aria-label={`Sélectionner ${salon.name}`}><MapPin size={selectedMarker ? 30 : 25} fill="currentColor" /></button>;
+        })}
+        {userPosition && <span className="osm-interactive-user" style={{ left: userPosition.left, top: userPosition.top }} title="Ta position"><LocateFixed size={17} /></span>}
+      </div>
+
+      <div className="osm-map-controls" aria-label="Contrôles de carte">
+        <button type="button" onClick={() => changeZoom(1)} aria-label="Zoomer"><Plus size={16} /></button>
+        <button type="button" onClick={() => changeZoom(-1)} aria-label="Dézoomer"><Minus size={16} /></button>
+        <button type="button" onClick={resetView} aria-label="Recentrer la carte"><RotateCcw size={15} /></button>
+      </div>
+
+      {selected && selectedPosition && <div className="osm-selected-card" style={{ left: clamp(selectedPosition.left, 120, size.width - 120), top: clamp(selectedPosition.top - 112, 14, size.height - 125) }}>
+        <b>{selected.name}</b><small>{selected.address || selected.neighborhood} · {selected.openStatus?.open ? 'Ouvert' : 'Fermé'}</small><a href={`/salons/${selected.slug}`}>Voir la fiche <ExternalLink size={11} /></a>
+      </div>}
+      <div className="osm-interactive-attribution"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> · glisse pour déplacer · molette pour zoomer</div>
+    </div>
+  );
+}
+
 export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) {
   const googleContainer = useRef<HTMLDivElement>(null);
   const googleMap = useRef<any>(null);
@@ -91,48 +257,46 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
   const userMarker = useRef<any>(null);
   const [provider, setProvider] = useState<MapProvider>('loading');
   const center = useMemo(() => mapCenter(salons, userLocation), [salons, userLocation]);
-  const bbox = useMemo(() => bboxFor(center), [center]);
 
+  // On charge Google quand une clé est disponible. Le fond OSM interactif est
+  // le vrai fallback : il ne dépend d'aucune clé et reste utilisable sur mobile.
   useEffect(() => {
     let active = true;
     loadGoogleMaps()
       .then((google) => {
-        if (!active || !googleContainer.current) return;
+        if (!active) return;
         googleRef.current = google;
-        googleMap.current = new google.maps.Map(googleContainer.current, {
-          center,
-          zoom: 13,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true,
-          zoomControl: true,
-          clickableIcons: false,
-          styles: [
-            { elementType: 'geometry', stylers: [{ color: '#24211d' }] },
-            { elementType: 'labels.text.fill', stylers: [{ color: '#c8bcae' }] },
-            { elementType: 'labels.text.stroke', stylers: [{ color: '#24211d' }] },
-            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#494238' }] },
-            { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#302b25' }] },
-            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#172d32' }] },
-            { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#302b25' }] },
-          ],
-        });
         setProvider('google');
       })
       .catch(() => {
         if (active) setProvider('openstreetmap');
       });
-
-    return () => {
-      active = false;
-      markers.current.forEach((marker) => marker.setMap(null));
-      userMarker.current?.setMap(null);
-      markers.current = [];
-      googleMap.current = null;
-    };
-    // The map is initialized once. Marker and centre updates are handled below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (provider !== 'google' || !googleRef.current || !googleContainer.current || googleMap.current) return;
+    const google = googleRef.current;
+    googleMap.current = new google.maps.Map(googleContainer.current, {
+      center,
+      zoom: salons.length === 1 ? 15 : 13,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+      gestureHandling: 'greedy',
+      clickableIcons: false,
+      styles: [
+        { elementType: 'geometry', stylers: [{ color: '#24211d' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#c8bcae' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#24211d' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#494238' }] },
+        { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#302b25' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#172d32' }] },
+        { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#302b25' }] },
+      ],
+    });
+  }, [center, provider, salons.length]);
 
   useEffect(() => {
     const google = googleRef.current;
@@ -186,30 +350,13 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
     }
   }, [salons, selectedId, userLocation, provider, center, onSelect]);
 
-  const osmSrc = useMemo(() => {
-    const values = [bbox.west, bbox.south, bbox.east, bbox.north].map((value) => value.toFixed(6)).join('%2C');
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${values}&layer=mapnik&marker=${center.lat.toFixed(6)}%2C${center.lng.toFixed(6)}`;
-  }, [bbox, center]);
-
   return (
     <div className="salon-map-widget">
       {provider === 'google' && <div ref={googleContainer} className="real-google-map" aria-label="Carte Google Maps des salons" />}
       {provider === 'loading' && <div className="map-loading"><LocateFixed className="spin" /><span>Chargement de la carte…</span></div>}
-      {provider === 'openstreetmap' && (
-        <div className="osm-map-wrap">
-          <iframe title="Carte réelle des salons HLAQTI" src={osmSrc} loading="lazy" />
-          <div className="osm-markers" aria-label="Salons sur la carte">
-            {salons.map((salon) => {
-              const position = pinPosition(salon, bbox);
-              const selected = salon.id === selectedId;
-              return <button key={salon.id} className={`osm-pin ${salon.openStatus?.open ? 'open' : 'closed'}${selected ? ' selected' : ''}`} style={position} onClick={() => onSelect(salon.id)} title={`${salon.name} · ${salon.openStatus?.label || 'Statut indisponible'}`} aria-label={`Afficher ${salon.name}`}><MapPin size={selected ? 24 : 21} fill="currentColor" /></button>;
-            })}
-            {userLocation && <span className="osm-user-pin" style={{ left: `${((userLocation.lng - bbox.west) / (bbox.east - bbox.west)) * 100}%`, top: `${((bbox.north - userLocation.lat) / (bbox.north - bbox.south)) * 100}%` }} title="Ta position"><LocateFixed size={19} /></span>}
-          </div>
-        </div>
-      )}
+      {provider === 'openstreetmap' && <InteractiveOsmMap salons={salons} selectedId={selectedId} userLocation={userLocation} onSelect={onSelect} center={center} />}
       <div className="map-provider-badge">{provider === 'google' ? 'Google Maps · Maroc' : 'Carte réelle OpenStreetMap'} <span>·</span> {salons.length} point{salons.length > 1 ? 's' : ''}</div>
-      {provider === 'openstreetmap' && <a className="map-expand-link" href={`https://www.openstreetmap.org/?mlat=${center.lat}&mlon=${center.lng}#map=13/${center.lat}/${center.lng}`} target="_blank" rel="noreferrer"><ExternalLink size={12} /> Agrandir la carte</a>}
+      {provider === 'openstreetmap' && <a className="map-expand-link" href={`https://www.openstreetmap.org/?mlat=${center.lat}&mlon=${center.lng}#map=13/${center.lat}/${center.lng}`} target="_blank" rel="noreferrer"><ExternalLink size={12} /> Ouvrir en grand</a>}
     </div>
   );
 }

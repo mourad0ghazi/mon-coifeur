@@ -304,7 +304,9 @@ export default function Salons() {
               const isFavorite = favorites.has(salon.id);
               const status = salon.openStatus;
               return (
-                <article id={`salon-result-${salon.id}`} className={`salon-result-card${isSelected ? ' selected' : ''}`} key={salon.id} onMouseEnter={() => setSelectedId(salon.id)}>
+                <article id={`salon-result-${salon.id}`} className={`salon-result-card${isSelected ? ' selected' : ''}`} key={salon.id} onMouseEnter={() => setSelectedId(salon.id)} onClick={(event) => {
+                  if (!(event.target as HTMLElement).closest('a,button')) selectSalon(salon.id);
+                }}>
                   <Link className="salon-result-photo" href={`/salons/${salon.slug}`} aria-label={`Voir ${salon.name}`}>
                     <Image src={salon.image} fill alt={salon.name} sizes="(max-width: 900px) 100vw, 300px" />
                     <span className={`salon-status ${status?.open ? 'open' : 'closed'}`}><i className={status?.open ? 'blink' : ''} /> {status?.open ? 'OUVERT' : 'FERMÉ'}</span>
@@ -315,6 +317,7 @@ export default function Salons() {
                       <div>
                         <Link href={`/salons/${salon.slug}`}><h3>{salon.name}</h3></Link>
                         <p><MapPin size={14} /> {salon.neighborhood}, {salon.city}{salon.distanceKm != null ? ` · ${salon.distanceKm.toFixed(1)} km` : ''}</p>
+                        <small className="salon-result-address">{salon.address}</small>
                       </div>
                       <button className={`favorite-button${isFavorite ? ' active' : ''}`} type="button" aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} onClick={() => toggleFavorite(salon.id)}><Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} /></button>
                     </div>
@@ -332,7 +335,7 @@ export default function Salons() {
         <aside className={`salons-map-panel${mobileMap ? ' mobile-visible' : ''}`}>
           <div className="salons-map-panel-head"><div><span className="section-kicker">CARTE EN DIRECT</span><h2>{results.length} adresse{results.length > 1 ? 's' : ''} affichée{results.length > 1 ? 's' : ''}</h2></div><span className="map-legend"><i className="open-dot" /> Ouvert</span></div>
           <SalonMap salons={results} selectedId={selectedId} userLocation={userLocation} onSelect={selectSalon} />
-          <div className="salons-map-footer"><span><MapPin size={14} /> Les positions correspondent aux adresses déclarées par les partenaires.</span><a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Ouvrir Google Maps <ExternalLink size={12} /></a></div>
+          <div className="salons-map-footer"><span><MapPin size={14} /> Clique sur un pin pour passer d’un salon à l’autre · positions déclarées par les partenaires.</span><a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Ouvrir Google Maps <ExternalLink size={12} /></a></div>
         </aside>
       </section>
 

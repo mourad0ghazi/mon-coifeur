@@ -105,6 +105,7 @@ export function SalonDetail({ salon, status }: Props) {
     name: salon.name,
     neighborhood: salon.neighborhood,
     city: salon.city,
+    address: salon.address,
     latitude: salon.latitude,
     longitude: salon.longitude,
     openStatus: status,

@@ -759,3 +759,41 @@
   .detail-info-grid{grid-template-columns:1fr}
   .salon-info-block .salon-map-widget{height:350px}
 }
+
+/* ===== Carte OSM interactive sans clé : pins synchronisés avec les tuiles ===== */
+.osm-interactive-map{position:absolute;inset:0;overflow:hidden;background:#d8d2c6;cursor:grab;touch-action:none;user-select:none}
+.osm-interactive-map.dragging{cursor:grabbing}
+.osm-tile-layer{position:absolute;inset:0;pointer-events:none}
+.osm-tile{position:absolute;width:256px;height:256px;max-width:none;display:block;pointer-events:none}
+.osm-interactive-markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.osm-interactive-pin{position:absolute;transform:translate(-50%,-100%);display:grid;place-items:center;width:34px;height:38px;padding:0;background:none;border:0;color:#817568;pointer-events:auto;filter:drop-shadow(0 3px 3px rgba(0,0,0,.42));cursor:pointer;transition:transform .18s ease,color .18s ease;z-index:2}
+.osm-interactive-pin.open{color:var(--green)}
+.osm-interactive-pin.closed{color:#817568}
+.osm-interactive-pin.selected{color:var(--gold);transform:translate(-50%,-100%) scale(1.2);z-index:4}
+.osm-interactive-pin:hover{color:var(--gold2);transform:translate(-50%,-100%) scale(1.1);z-index:5}
+.osm-interactive-user{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;width:29px;height:29px;border:2px solid #fff;border-radius:50%;background:#e6f4fb;color:#3b7ea1;pointer-events:none;z-index:6;box-shadow:0 2px 8px #0006}
+.osm-map-controls{position:absolute;right:12px;top:12px;display:grid;gap:5px;z-index:8}
+.osm-map-controls button{display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(38,31,24,.18);border-radius:7px;background:rgba(255,250,243,.94);color:#372d24;box-shadow:0 2px 7px rgba(0,0,0,.16);cursor:pointer}
+.osm-map-controls button:hover{background:var(--gold2)}
+.osm-selected-card{position:absolute;z-index:7;transform:translateX(-50%);min-width:178px;max-width:220px;padding:10px 11px;background:rgba(25,21,17,.94);border:1px solid rgba(224,196,143,.7);border-radius:9px;color:var(--ivory);box-shadow:0 8px 22px rgba(0,0,0,.32);pointer-events:auto;display:grid;gap:3px}
+.osm-selected-card:after{content:'';position:absolute;left:50%;bottom:-6px;width:10px;height:10px;background:rgba(25,21,17,.94);border-right:1px solid rgba(224,196,143,.7);border-bottom:1px solid rgba(224,196,143,.7);transform:translateX(-50%) rotate(45deg)}
+.osm-selected-card b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.osm-selected-card small{font-size:9px;color:#c6bcae}
+.osm-selected-card a{display:inline-flex;align-items:center;gap:4px;color:var(--gold2);font-size:9px;font-weight:700;margin-top:3px;width:max-content}
+.osm-selected-card a:hover{text-decoration:underline}
+.osm-interactive-attribution{position:absolute;left:10px;bottom:10px;z-index:8;padding:5px 7px;border-radius:4px;background:rgba(255,250,243,.88);color:#4b4137;font-size:8px;pointer-events:auto}
+.osm-interactive-attribution a{text-decoration:underline;color:#4b4137}
+.osm-interactive-attribution a:hover{color:#8b642d}
+@media(max-width:560px){
+  .osm-map-controls{right:9px;top:9px}
+  .osm-map-controls button{width:31px;height:31px}
+  .osm-selected-card{min-width:155px;max-width:190px}
+  .osm-interactive-attribution{font-size:7px;max-width:190px}
+}
+
+.salon-result-address{display:block;color:#82776b;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px;max-width:100%}
+@media(max-width:560px){.salon-result-address{font-size:8px}}
+
+/* Sur la carte interactive, le badge fournisseur reste en haut pour ne pas
+   recouvrir l'attribution OpenStreetMap en bas. */
+.map-provider-badge{top:10px;bottom:auto}
