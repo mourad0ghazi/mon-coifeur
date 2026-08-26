@@ -24,7 +24,7 @@ export const MOROCCAN_NEIGHBORHOODS: { city: string; name: string }[] = [
   // Casablanca
   ...['Sidi Bernoussi', 'Sidi Moumen', 'Aïn Sebaâ', 'Hay Mohammadi', 'Aïn Chock',
     'Maârif', 'Anfa', 'Derb Sultan', 'Bourgogne', 'Gauthier', 'Sidi Maârouf',
-    'Oasis', 'Californie', 'Hay Hassani', 'Moulay Rachid', 'Sbata', "Ben M'sick",
+    'Oasis', 'Californie', 'Hay Hassani', 'Moulay Rachid', 'Sbata', "Ben M'sick", 'Zenata', 'Ahl Loghlam',
     'Sidi Othmane', 'Mers Sultan', 'Roches Noires', 'Belvédère', 'Hermitage',
     'Al Fida', 'Médina', 'Bouskoura', 'Dar Bouazza', 'Lahraouyine', 'Médiouna',
     'Nouaceur', 'Tit Mellil', 'Aïn Harrouda', 'Ziraoui', 'Palmier', 'CIL',

@@ -65,7 +65,14 @@ function loadGoogleMaps() {
 
 function mapCenter(salons: MapSalon[], userLocation?: Position | null): Position {
   if (userLocation && isInMorocco(userLocation)) return userLocation;
-  if (salons.length) return { lat: salons[0].latitude, lng: salons[0].longitude };
+  if (salons.length) {
+    const latitudes = salons.map((salon) => salon.latitude);
+    const longitudes = salons.map((salon) => salon.longitude);
+    return {
+      lat: (Math.min(...latitudes) + Math.max(...latitudes)) / 2,
+      lng: (Math.min(...longitudes) + Math.max(...longitudes)) / 2,
+    };
+  }
   // Casablanca centre : le fond OSM reste utile même si un filtre ne renvoie aucun salon.
   return { lat: 33.6148, lng: -7.5128 };
 }
@@ -80,6 +87,20 @@ function clamp(value: number, min: number, max: number) {
 
 function clampAxis(value: number, min: number, max: number) {
   return min <= max ? clamp(value, min, max) : (min + max) / 2;
+}
+
+function startingZoom(salons: MapSalon[]) {
+  if (salons.length <= 1) return 15;
+  const latitudes = salons.map((salon) => salon.latitude);
+  const longitudes = salons.map((salon) => salon.longitude);
+  const span = Math.max(Math.max(...latitudes) - Math.min(...latitudes), Math.max(...longitudes) - Math.min(...longitudes));
+  if (span > 5) return 7;
+  if (span > 2.5) return 8;
+  if (span > 1.2) return 9;
+  if (span > 0.65) return 10;
+  if (span > 0.32) return 11;
+  if (span > 0.16) return 12;
+  return 13;
 }
 
 function worldSize(zoom: number) {
@@ -139,8 +160,9 @@ function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center 
   const mapRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(null);
   const contextRef = useRef('');
+  const selectionContextRef = useRef('');
   const [size, setSize] = useState<MapSize>({ width: 800, height: 625 });
-  const [view, setView] = useState<View>({ center, zoom: salons.length === 1 ? 15 : 13 });
+  const [view, setView] = useState<View>({ center, zoom: startingZoom(salons) });
   const [dragging, setDragging] = useState(false);
 
   const contextKey = `${userLocation?.lat ?? ''},${userLocation?.lng ?? ''}|${salons.map((salon) => `${salon.id}:${salon.latitude}:${salon.longitude}`).join('|')}`;
@@ -158,18 +180,22 @@ function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center 
   useEffect(() => {
     if (contextRef.current === contextKey) return;
     contextRef.current = contextKey;
-    const zoom = salons.length === 1 ? 15 : 13;
+    selectionContextRef.current = `${contextKey}|${selectedId ?? ''}`;
+    const zoom = startingZoom(salons);
     setView({ center: clampMapCenter(center, zoom, size), zoom });
   }, [center, contextKey, salons.length, size]);
 
   useEffect(() => {
     const selected = salons.find((salon) => salon.id === selectedId);
     if (!selected) return;
+    const selectionKey = `${contextKey}|${selectedId}`;
+    if (selectionContextRef.current === selectionKey) return;
+    selectionContextRef.current = selectionKey;
     setView((current) => ({
       ...current,
       center: clampMapCenter({ lat: selected.latitude, lng: selected.longitude }, current.zoom, size),
     }));
-  }, [selectedId, salons, size]);
+  }, [contextKey, selectedId, salons, size]);
 
   function changeZoom(delta: number) {
     setView((current) => {
@@ -179,7 +205,7 @@ function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center 
   }
 
   function resetView() {
-    const zoom = salons.length === 1 ? 15 : 13;
+    const zoom = startingZoom(salons);
     setView({ center: clampMapCenter(center, zoom, size), zoom });
   }
 
@@ -291,6 +317,7 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
   const googleContainer = useRef<HTMLDivElement>(null);
   const googleMap = useRef<any>(null);
   const googleRef = useRef<any>(null);
+  const googleContextRef = useRef('');
   const markers = useRef<any[]>([]);
   const userMarker = useRef<any>(null);
   const [provider, setProvider] = useState<MapProvider>('loading');
@@ -317,7 +344,7 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
     const google = googleRef.current;
     googleMap.current = new google.maps.Map(googleContainer.current, {
       center,
-      zoom: salons.length === 1 ? 15 : 13,
+      zoom: startingZoom(salons),
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: true,
@@ -381,13 +408,19 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
       userMarker.current = null;
     }
 
-    if (selectedId) {
-      const selected = salons.find((salon) => salon.id === selectedId);
-      if (selected) map.panTo({ lat: selected.latitude, lng: selected.longitude });
-    } else if (salons.length > 1) {
-      const bounds = new google.maps.LatLngBounds();
+    const mapContextKey = `${userLocation?.lat ?? ''},${userLocation?.lng ?? ''}|${salons.map((salon) => `${salon.id}:${salon.latitude}:${salon.longitude}`).join('|')}`;
+    const contextChanged = googleContextRef.current !== mapContextKey;
+    googleContextRef.current = mapContextKey;
+
+    if (contextChanged && salons.length > 1) {
+      // La première vue montre tous les résultats. Ensuite, chaque clic sur un
+      // pin recentre la carte sur le salon choisi, comme une app de mobilité.
+      const bounds = new google.LatLngBounds();
       salons.forEach((salon) => bounds.extend({ lat: salon.latitude, lng: salon.longitude }));
       map.fitBounds(bounds, 70);
+    } else if (selectedId) {
+      const selected = salons.find((salon) => salon.id === selectedId);
+      if (selected) map.panTo({ lat: selected.latitude, lng: selected.longitude });
     } else {
       map.panTo(center);
     }

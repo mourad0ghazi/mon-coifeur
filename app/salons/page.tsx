@@ -107,6 +107,7 @@ export default function Salons() {
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapQuery, setMapQuery] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [mobileMap, setMobileMap] = useState(false);
 
@@ -211,6 +212,11 @@ export default function Salons() {
   }, [loading, results.length]);
 
   const locationLabel = applied.latitude != null ? `Autour de ta position · ${applied.radiusKm} km` : `${applied.city || 'Maroc'}${applied.quartier ? ` · ${applied.quartier}` : ''}`;
+  const mapMatches = useMemo(() => {
+    const query = mapQuery.trim().toLowerCase();
+    if (!query) return [];
+    return results.filter((salon) => [salon.name, salon.barberName, salon.neighborhood, salon.address].some((value) => value.toLowerCase().includes(query))).slice(0, 6);
+  }, [mapQuery, results]);
 
   return (
     <main className="salons-page">
@@ -334,6 +340,15 @@ export default function Salons() {
 
         <aside className={`salons-map-panel${mobileMap ? ' mobile-visible' : ''}`}>
           <div className="salons-map-panel-head"><div><span className="section-kicker">CARTE EN DIRECT</span><h2>{results.length} adresse{results.length > 1 ? 's' : ''} affichée{results.length > 1 ? 's' : ''}</h2></div><span className="map-legend"><i className="open-dot" /> Ouvert</span></div>
+          <div className="map-search-box">
+            <Search size={16} />
+            <input value={mapQuery} onChange={(event) => setMapQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && mapMatches[0]) { event.preventDefault(); selectSalon(mapMatches[0].id); setMapQuery(''); } }} placeholder="Chercher un salon sur la carte…" aria-label="Chercher un salon sur la carte" />
+            {mapQuery && <button type="button" onClick={() => setMapQuery('')} aria-label="Effacer la recherche sur la carte"><X size={14} /></button>}
+            {mapQuery && <div className="map-search-suggestions" role="listbox">
+              {mapMatches.length ? mapMatches.map((salon) => <button type="button" role="option" key={salon.id} onClick={() => { selectSalon(salon.id); setMapQuery(''); }}><span><b>{salon.name}</b><small>{salon.neighborhood} · {salon.address}</small></span><ChevronRight size={14} /></button>) : <p>Aucun salon dans les résultats affichés.</p>}
+            </div>}
+          </div>
+          <p className="map-interaction-hint">Choisis un résultat ou glisse la carte pour explorer les adresses.</p>
           <SalonMap salons={results} selectedId={selectedId} userLocation={userLocation} onSelect={selectSalon} />
           <div className="salons-map-footer"><span><MapPin size={14} /> Clique sur un pin pour passer d’un salon à l’autre · navigation limitée au Maroc.</span><a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Ouvrir Google Maps <ExternalLink size={12} /></a></div>
         </aside>
