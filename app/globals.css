@@ -934,3 +934,24 @@
 .inspiration-real-wall{background:var(--bg);border-top:1px solid var(--border)}.inspiration-real-wall .cuts-section{padding-top:90px}
 @media(max-width:950px){.inspiration-style-grid{grid-template-columns:repeat(2,1fr)}.face-guide-grid{grid-template-columns:repeat(3,1fr)}.face-guide-card:last-child{grid-column:auto}.inspiration-hero-stamp{right:25px}}
 @media(max-width:650px){.inspiration-hero-new{min-height:580px}.inspiration-hero-content-new{padding:100px 20px 80px}.inspiration-hero-content-new h1{font-size:48px}.inspiration-hero-content-new>p{font-size:14px}.inspiration-hero-stamp{left:20px;right:20px;bottom:22px;max-width:none}.inspiration-guide{padding:65px 0 70px}.inspiration-guide-head{display:block}.inspiration-count{display:flex;align-items:baseline;justify-content:flex-start;gap:6px;margin-top:15px}.inspiration-count b{font-size:28px}.inspiration-toolbar-bottom{display:block}.inspiration-gender-tabs{overflow:auto;margin-bottom:10px}.inspiration-search{width:100%}.inspiration-style-grid{grid-template-columns:1fr;gap:13px}.inspiration-style-photo{height:260px}.inspiration-style-body h3{font-size:20px}.face-guide-section{padding:65px 0 75px}.face-guide-grid{grid-template-columns:1fr 1fr}.face-guide-card{padding:13px 11px}.inspiration-real-wall .cuts-section{padding-top:65px}}
+
+/* ===== Article historique et schéma technique des coupes homme ===== */
+.inspiration-face-tabs{display:flex;gap:6px;overflow:auto;min-width:0}
+.inspiration-face-tabs button{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:18px;padding:8px 11px;white-space:nowrap;font-size:10px;font-weight:700;cursor:pointer}
+.inspiration-face-tabs button:hover{border-color:var(--gold);color:var(--gold2)}
+.inspiration-face-tabs button.active{background:var(--surface2);border-color:var(--gold);color:var(--gold2)}
+.history-fact{display:grid;grid-template-columns:18px 1fr;gap:8px;margin-top:14px;padding:10px;background:rgba(200,161,101,.07);border:1px solid rgba(200,161,101,.2);border-radius:8px}
+.history-fact>svg{color:var(--gold2);margin-top:2px}
+.history-fact span{display:grid;gap:4px}.history-fact b{font-size:8px;color:var(--gold2);letter-spacing:.06em;text-transform:uppercase}.history-fact small{font-size:10px;line-height:1.55;color:#c9c0b5}
+.cut-diagram{margin-top:14px;padding-top:13px;border-top:1px solid var(--border)}
+.cut-diagram-visual{height:125px;border-radius:8px;background:linear-gradient(135deg,#211d18,#302a22);border:1px solid rgba(200,161,101,.18);display:grid;place-items:center;overflow:hidden}
+.cut-diagram-visual svg{width:100%;height:124px;overflow:visible}
+.diagram-head{fill:rgba(245,241,234,.08);stroke:#c8a165;stroke-width:1.5}
+.diagram-hair{fill:rgba(224,196,143,.58);stroke:#e0c48f;stroke-width:1.6}
+.diagram-fade{fill:rgba(46,158,107,.45);stroke:#80d3a8}.diagram-taper{fill:rgba(59,126,161,.52);stroke:#8cb9cc}.diagram-crop{fill:rgba(200,161,101,.55)}.diagram-buzz{fill:rgba(166,156,142,.48);stroke:#cfc4b5}.diagram-crew{fill:rgba(224,196,143,.55)}.diagram-sidepart{fill:rgba(200,161,101,.56)}.diagram-pompadour{fill:rgba(192,80,60,.48);stroke:#e39b91}.diagram-undercut{fill:rgba(59,126,161,.52);stroke:#8cb9cc}.diagram-mullet{fill:rgba(224,163,46,.52);stroke:#f0c56b}.diagram-afro{fill:rgba(46,158,107,.48);stroke:#80d3a8}.diagram-locs{fill:rgba(200,161,101,.55)}.diagram-hightop{fill:rgba(192,80,60,.45);stroke:#e39b91}
+.diagram-face-line,.diagram-side-line{fill:none;stroke:#a69c8e;stroke-width:1}.cut-diagram-visual text{fill:#c8bcae;font:7px var(--font);letter-spacing:.03em}
+.cut-diagram-caption{display:grid;gap:3px;margin-top:8px}.cut-diagram-caption span{display:flex;align-items:center;gap:5px;color:var(--ivory);font-size:9px;font-weight:700}.cut-diagram-caption small{color:var(--muted);font-size:8px;line-height:1.4}.diagram-gold-dot{width:6px;height:6px;background:var(--gold);border-radius:50%;display:inline-block}
+.cut-measurements{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:9px}.cut-measurements span{display:grid;gap:2px;color:var(--gold2);font-size:9px}.cut-measurements b{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.inspiration-article{margin-top:16px}.inspiration-article h4{font:700 11px var(--display);color:var(--gold2);margin:0 0 6px}.inspiration-article p{margin-bottom:12px}.inspiration-source{display:inline-flex;align-items:center;gap:5px;color:var(--gold2);font-size:9px;line-height:1.4}.inspiration-source:hover{text-decoration:underline}
+.face-recommendation{border:0;background:transparent;padding:0;text-align:left;cursor:pointer}
+@media(max-width:650px){.inspiration-face-tabs{padding-bottom:2px}.history-fact small{font-size:9px}.cut-diagram-visual{height:115px}.cut-diagram-visual svg{height:114px}.cut-measurements span{font-size:8px}}
