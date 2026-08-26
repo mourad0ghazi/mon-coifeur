@@ -190,7 +190,11 @@ export default function Salons() {
 
   function selectSalon(id: string) {
     setSelectedId(id);
-    document.getElementById(`salon-result-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Le clic sur un pin ramène immédiatement la fiche correspondante à côté
+    // de la carte, sans perdre le contexte de la recherche.
+    window.requestAnimationFrame(() => {
+      document.getElementById(`salon-result-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   }
 
   function toggleFavorite(id: string) {
@@ -225,6 +229,7 @@ export default function Salons() {
     if (!query) return [];
     return results.filter((salon) => [salon.name, salon.barberName, salon.neighborhood, salon.address].some((value) => value.toLowerCase().includes(query))).slice(0, 6);
   }, [mapQuery, results]);
+  const selectedSalon = results.find((salon) => salon.id === selectedId) || null;
 
   return (
     <main className="salons-page">
@@ -358,6 +363,10 @@ export default function Salons() {
           </div>
           <p className="map-interaction-hint">Choisis un résultat ou glisse la carte pour explorer les adresses.</p>
           <SalonMap salons={results} selectedId={selectedId} userLocation={userLocation} onSelect={selectSalon} />
+          {selectedSalon && <div className="map-selected-salon" aria-live="polite">
+            <div className="map-selected-salon-copy"><span className="selected-map-label"><i /> Salon sélectionné sur la carte</span><b>{selectedSalon.name}</b><small><MapPin size={12} /> {selectedSalon.address}, {selectedSalon.neighborhood}</small><span className={selectedSalon.openStatus?.open ? 'map-selected-status open' : 'map-selected-status'}><i className={selectedSalon.openStatus?.open ? 'blink' : ''} /> {selectedSalon.openStatus?.open ? selectedSalon.openStatus.label : selectedSalon.openStatus?.label}</span></div>
+            <div className="map-selected-actions"><Link href={`/salons/${selectedSalon.slug}`}>Voir le salon</Link><Link className="primary" href={reservationHref(selectedSalon)}>Réserver</Link></div>
+          </div>}
           <div className="salons-map-footer"><span><MapPin size={14} /> Clique sur un pin pour passer d’un salon à l’autre · navigation limitée au Maroc.</span><a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Ouvrir Google Maps <ExternalLink size={12} /></a></div>
         </aside>
       </section>

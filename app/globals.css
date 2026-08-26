@@ -854,3 +854,26 @@
   .radius-control .radius-select .svc-list{right:-12px}
   .salon-service-select .svc-list{right:-5px;min-width:205px}
 }
+
+/* Fiche rapide affichée à côté de la carte après un clic sur un pin */
+.map-selected-salon{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:10px;padding:12px 13px;background:linear-gradient(135deg,rgba(200,161,101,.13),rgba(28,26,23,.9));border:1px solid rgba(200,161,101,.5);border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.16)}
+.map-selected-salon-copy{display:grid;gap:3px;min-width:0}
+.selected-map-label{display:flex;align-items:center;gap:6px;color:var(--gold2);font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+.selected-map-label i{width:6px;height:6px;background:var(--gold);border-radius:50%;display:inline-block;box-shadow:0 0 0 4px rgba(200,161,101,.15)}
+.map-selected-salon-copy>b{font-family:var(--display);font-size:15px;color:var(--ivory)}
+.map-selected-salon-copy>small{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-selected-salon-copy>small svg{color:var(--gold);flex-shrink:0}
+.map-selected-status{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:9px}
+.map-selected-status.open{color:#78d5a1}
+.map-selected-status i{width:6px;height:6px;background:#8d8378;border-radius:50%;display:inline-block}
+.map-selected-status.open i{background:var(--green);box-shadow:0 0 0 4px rgba(46,158,107,.13)}
+.map-selected-actions{display:flex;gap:6px;flex-shrink:0}
+.map-selected-actions a{border:1px solid var(--border);border-radius:6px;padding:7px 9px;color:var(--gold2);font-size:9px;white-space:nowrap}
+.map-selected-actions a:hover{border-color:var(--gold);background:rgba(200,161,101,.1)}
+.map-selected-actions a.primary{background:var(--gold);border-color:var(--gold);color:#17130f;font-weight:800}
+.map-selected-actions a.primary:hover{background:var(--gold2)}
+@media(max-width:560px){
+  .map-selected-salon{display:block}
+  .map-selected-actions{margin-top:9px}
+  .map-selected-actions a{flex:1;text-align:center}
+}
