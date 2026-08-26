@@ -74,10 +74,14 @@ const SERVICE_OPTIONS = [
 ];
 
 const RADIUS_OPTIONS = [
+  { id: '1', label: '1 km · juste à côté', shortLabel: '1 km' },
   { id: '2', label: '2 km · très proche', shortLabel: '2 km' },
   { id: '5', label: '5 km · quartier', shortLabel: '5 km' },
   { id: '10', label: '10 km · Casablanca', shortLabel: '10 km' },
+  { id: '15', label: '15 km · proche périphérie', shortLabel: '15 km' },
   { id: '20', label: '20 km · alentours', shortLabel: '20 km' },
+  { id: '30', label: '30 km · grand Casablanca', shortLabel: '30 km' },
+  { id: '50', label: '50 km · longue distance', shortLabel: '50 km' },
 ];
 
 const DEFAULT_QUERY: Query = {
@@ -290,6 +294,7 @@ export default function Salons() {
               setApplied((current) => ({ ...current, radiusKm: next }));
             }} /></div>
             {userLocation && <span className="location-confirmed"><Check size={14} /> Position utilisée pour calculer les distances</span>}
+            {!userLocation && <span className="radius-hint">Utilise « ma position » pour activer le rayon</span>}
             {(q || city !== 'Casablanca' || quartier || service !== 'Tous' || openOnly || userLocation) && <button className="clear-search" type="button" onClick={resetSearch}>Réinitialiser</button>}
           </div>
         </div>
