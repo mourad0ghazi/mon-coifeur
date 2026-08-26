@@ -33,10 +33,10 @@ const TILE_SIZE = 256;
 // Zone de navigation autorisée : la carte reste centrée sur le Maroc et ne
 // permet pas de glisser vers l'Espagne, l'Algérie ou une vue monde.
 const MOROCCO_BOUNDS = {
-  north: 36.25,
-  south: 27.35,
-  west: -13.55,
-  east: -0.75,
+  north: 36.05,
+  south: 27.4,
+  west: -13.4,
+  east: -1.0,
 };
 const MIN_ZOOM = 7;
 const MAX_ZOOM = 18;
