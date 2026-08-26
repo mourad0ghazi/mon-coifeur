@@ -1,0 +1,7 @@
+import { createReference } from './booking';
+type DemoAppointment={id:string;reference:string;barberId:string;clientPhone:string;date:string;startMinutes:number;endMinutes:number;serviceId:string;priceMad:number;status:'CONFIRME';createdAt:string};
+const initial:DemoAppointment[]=[{id:'demo-1',reference:'HLQ-DEMO',barberId:'karim',clientPhone:'+212600000000',date:'2026-08-25',startMinutes:14*60,endMinutes:14*60+45,serviceId:'coupe-barbe',priceMad:65,status:'CONFIRME',createdAt:new Date().toISOString()}];
+const globalStore=globalThis as typeof globalThis&{hlaqtiAppointments?:DemoAppointment[];hlaqtiKeys?:Map<string,DemoAppointment>};
+export const appointments=globalStore.hlaqtiAppointments??(globalStore.hlaqtiAppointments=initial);
+export const idempotencyKeys=globalStore.hlaqtiKeys??(globalStore.hlaqtiKeys=new Map());
+export function reserve(input:Omit<DemoAppointment,'id'|'reference'|'status'|'createdAt'>,key:string){const previous=idempotencyKeys.get(key);if(previous)return{appointment:previous,replayed:true};const conflict=appointments.some(x=>x.barberId===input.barberId&&x.date===input.date&&x.status==='CONFIRME'&&input.startMinutes<x.endMinutes&&x.startMinutes<input.endMinutes);if(conflict)throw new Error('SLOT_UNAVAILABLE');const appointment:DemoAppointment={...input,id:crypto.randomUUID(),reference:createReference(),status:'CONFIRME',createdAt:new Date().toISOString()};appointments.push(appointment);idempotencyKeys.set(key,appointment);return{appointment,replayed:false}}

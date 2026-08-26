@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';import { z } from 'zod';import { issueOtp,normalizePhone } from '@/lib/auth-store';
+const schema=z.object({phone:z.string().min(9).max(20)});
+export async function POST(req:Request){const parsed=schema.safeParse(await req.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:'NUMERO_INVALIDE'},{status:422});const phone=normalizePhone(parsed.data.phone);if(!/^\+212[5-7]\d{8}$/.test(phone))return NextResponse.json({error:'NUMERO_INVALIDE',message:'Utilise un numéro marocain valide.'},{status:422});const code=issueOtp(phone);return NextResponse.json({data:{phone,expiresIn:300,...(process.env.NODE_ENV!=='production'?{devCode:code}:{})},message:'Code envoyé sur WhatsApp.'})}
