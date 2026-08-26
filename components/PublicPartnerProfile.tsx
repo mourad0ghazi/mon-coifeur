@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Check, Clock3, ExternalLink, MapPin, MessageCircle, Navigation, Scissors, ShieldCheck, Star, Store, UserRound } from 'lucide-react';
@@ -33,13 +35,9 @@ function mapsHref(application: PartnerApplication) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${application.address || ''}, ${application.neighborhood}, ${application.city}, Maroc`)}`;
 }
 
-export function partnerPublicSlug(application: PartnerApplication) {
-  return slugify(application.salon_name);
-}
-
 export function PublicPartnerProfile({ application }: Props) {
   const liveStatus = getOpenStatus(applicationHours(application));
-  const slug = partnerPublicSlug(application);
+  const slug = slugify(application.salon_name);
   const mapSalon = application.latitude != null && application.longitude != null ? [{
     id: application.id,
     slug,
