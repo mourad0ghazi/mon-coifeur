@@ -20,6 +20,7 @@ import {
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
+import { CustomSelect } from '@/components/CustomSelect';
 import { SalonMap } from '@/components/SalonMap';
 
 type LiveStatus = {
@@ -70,6 +71,13 @@ const SERVICE_OPTIONS = [
   { id: 'barbe', label: 'Barbe' },
   { id: 'enfant', label: 'Coupe enfant' },
   { id: 'ciseaux', label: 'Coupe aux ciseaux' },
+];
+
+const RADIUS_OPTIONS = [
+  { id: '2', label: '2 km · très proche', shortLabel: '2 km' },
+  { id: '5', label: '5 km · quartier', shortLabel: '5 km' },
+  { id: '10', label: '10 km · Casablanca', shortLabel: '10 km' },
+  { id: '20', label: '20 km · alentours', shortLabel: '20 km' },
 ];
 
 const DEFAULT_QUERY: Query = {
@@ -259,9 +267,9 @@ export default function Salons() {
                 }}
               />
             </div>
-            <label className="salons-service-field">
-              <span><small>SERVICE</small><select value={service} onChange={(event) => setService(event.target.value)}>{SERVICE_OPTIONS.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></span>
-            </label>
+            <div className="salons-service-field">
+              <span><small>SERVICE</small><CustomSelect className="salon-service-select" options={SERVICE_OPTIONS} value={service} onChange={setService} /></span>
+            </div>
             <button className="salons-search-button" type="submit"><Search size={17} /> Rechercher</button>
           </form>
 
@@ -271,11 +279,11 @@ export default function Salons() {
               setApplied((current) => ({ ...current, openOnly: next }));
               return next;
             })}><i className={openOnly ? 'blink' : ''} /> Ouverts maintenant</button>
-            <label className="radius-control"><Navigation size={14} /><span>Rayon</span><select disabled={!userLocation} value={radiusKm} onChange={(event) => {
-              const next = Number(event.target.value);
+            <div className="radius-control"><Navigation size={14} /><span>Rayon</span><CustomSelect className="radius-select" options={RADIUS_OPTIONS} value={String(radiusKm)} disabled={!userLocation} onChange={(value) => {
+              const next = Number(value);
               setRadiusKm(next);
               setApplied((current) => ({ ...current, radiusKm: next }));
-            }}><option value={2}>2 km</option><option value={5}>5 km</option><option value={10}>10 km</option><option value={20}>20 km</option></select></label>
+            }} /></div>
             {userLocation && <span className="location-confirmed"><Check size={14} /> Position utilisée pour calculer les distances</span>}
             {(q || city !== 'Casablanca' || quartier || service !== 'Tous' || openOnly || userLocation) && <button className="clear-search" type="button" onClick={resetSearch}>Réinitialiser</button>}
           </div>

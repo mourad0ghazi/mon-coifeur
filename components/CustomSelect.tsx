@@ -3,16 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 
-export type Option = { id: string; label: string };
+export type Option = { id: string; label: string; shortLabel?: string };
 
 export function CustomSelect({
   options,
   value,
   onChange,
+  className = '',
+  disabled = false,
 }: {
   options: Option[];
   value: string;
   onChange: (id: string) => void;
+  className?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -27,15 +31,16 @@ export function CustomSelect({
   }, []);
 
   return (
-    <div className={'svc-select' + (open ? ' open' : '')} ref={ref}>
+    <div className={`svc-select ${className}${open ? ' open' : ''}`} ref={ref}>
       <button
         type="button"
         className="svc-trigger"
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="svc-value">{selected.label.charAt(0).toUpperCase() + selected.label.slice(1)}</span>
+        <span className="svc-value">{(selected.shortLabel || selected.label).charAt(0).toUpperCase() + (selected.shortLabel || selected.label).slice(1)}</span>
         <ChevronDown size={16} className={'svc-chevron' + (open ? ' up' : '')} />
       </button>
       {open && (

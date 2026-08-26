@@ -815,3 +815,42 @@
 .map-search-suggestions p{font-size:10px;color:#8b8074;margin:8px;text-align:center}
 .map-interaction-hint{font-size:9px;color:var(--muted);margin:7px 2px 9px}
 @media(max-width:560px){.map-interaction-hint{font-size:8px}.map-search-box{height:40px}}
+
+/* ===== Suggestions HLAQTI : même finition charbon/laiton partout ===== */
+.svc-trigger:disabled{opacity:.55;cursor:not-allowed}
+.radius-control .radius-select{width:auto;min-width:55px;flex:0 0 auto}
+.radius-control .radius-select .svc-trigger{color:var(--ivory);font-size:11px;gap:5px;min-height:24px}
+.radius-control .radius-select .svc-trigger:hover{color:var(--gold2)}
+.radius-control .radius-select .svc-chevron{color:var(--gold2);width:14px}
+.radius-control .radius-select .svc-list{left:auto;right:-8px;min-width:190px;background:#1c1a17;border-color:#5b4a31;box-shadow:0 18px 42px rgba(0,0,0,.45)}
+.radius-control .radius-select .svc-list li button{color:var(--ivory);font-size:11px}
+.radius-control .radius-select .svc-list li button:hover{background:#302b25;color:var(--gold2)}
+.radius-control .radius-select .svc-check{color:var(--gold2)}
+.salon-service-select .svc-trigger{font-size:13px;color:#1e1a16;min-height:25px}
+.salon-service-select .svc-list{left:auto;right:0;min-width:220px;background:#1c1a17;border-color:#5b4a31;box-shadow:0 18px 42px rgba(0,0,0,.4)}
+.salon-service-select .svc-list li button{color:var(--ivory)}
+.salon-service-select .svc-list li button:hover{background:#302b25;color:var(--gold2)}
+.salon-service-select .svc-label b{font-size:11px}
+.salon-service-select .svc-check{color:var(--gold2)}
+.salons-page .location-list{background:#1c1a17;border-color:#5b4a31;box-shadow:0 18px 42px rgba(0,0,0,.42)}
+.salons-page .location-list li{color:var(--ivory)}
+.salons-page .location-list li:hover{background:#302b25}
+.salons-page .location-list li b{color:var(--ivory)}
+.salons-page .location-list li small{color:#a69c8e}
+.salons-page .location-list li svg{color:var(--gold2)}
+.salons-page .location-list li.geo-item{background:#28231e;border-bottom-color:#4a3e30}
+.salons-page .location-list li.powered-google,.salons-page .location-list li.powered-local{border-top-color:#4a3e30}
+.salons-page .location-list li.powered-google:hover,.salons-page .location-list li.powered-local:hover{background:transparent}
+.salons-page .location-list li.powered-local{color:#a69c8e}
+.salons-page .location-list .g-badge{background:#302b25;color:#d0c4b4}
+.salons-page .map-search-suggestions{background:#1c1a17;border-color:#5b4a31;box-shadow:0 18px 42px rgba(0,0,0,.42)}
+.salons-page .map-search-suggestions button{color:var(--ivory)}
+.salons-page .map-search-suggestions button:hover{background:#302b25}
+.salons-page .map-search-suggestions b{color:var(--ivory)}
+.salons-page .map-search-suggestions small{color:#a69c8e}
+.salons-page .map-search-suggestions button>svg{color:var(--gold2)}
+.salons-page .map-search-suggestions p{color:#a69c8e}
+@media(max-width:560px){
+  .radius-control .radius-select .svc-list{right:-12px}
+  .salon-service-select .svc-list{right:-5px;min-width:205px}
+}
