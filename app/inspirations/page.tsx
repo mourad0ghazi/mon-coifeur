@@ -1,18 +1,17 @@
-import Link from 'next/link';
+import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
+import { InspirationExplorer } from '@/components/InspirationExplorer';
 import { CutsWall } from '@/components/CutsWall';
 
-export const metadata = { title: 'Inspirations · HLAQTI' };
+export const metadata = { title: 'Inspirations · HLAQTI', description: 'Guide des coiffures populaires au Maroc et dans le monde.' };
 
 export default function Inspirations() {
   return (
-    <main className="inspirations-page">
-      <div className="container inspirations-head">
-        <Link href="/" className="back-link">← Accueil</Link>
-        <span className="section-kicker">INSPIRATIONS</span>
-        <h1>Le mur des coupes.</h1>
-        <p>Du vrai travail, par de vrais coiffeurs du Maroc. Filtrez par style.</p>
-      </div>
-      <CutsWall />
+    <main className="inspirations-page inspirations-redesigned">
+      <div className="inner-head"><Header /></div>
+      <InspirationExplorer />
+      <section className="inspiration-real-wall"><CutsWall /></section>
+      <Footer />
     </main>
   );
 }
