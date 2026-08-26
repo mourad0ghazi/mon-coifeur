@@ -30,7 +30,15 @@ type View = { center: Position; zoom: number };
 type MapSize = { width: number; height: number };
 
 const TILE_SIZE = 256;
-const MIN_ZOOM = 11;
+// Zone de navigation autorisée : la carte reste centrée sur le Maroc et ne
+// permet pas de glisser vers l'Espagne, l'Algérie ou une vue monde.
+const MOROCCO_BOUNDS = {
+  north: 36.25,
+  south: 27.35,
+  west: -13.55,
+  east: -0.75,
+};
+const MIN_ZOOM = 7;
 const MAX_ZOOM = 18;
 
 let googleMapsPromise: Promise<any> | null = null;
@@ -56,14 +64,22 @@ function loadGoogleMaps() {
 }
 
 function mapCenter(salons: MapSalon[], userLocation?: Position | null): Position {
-  if (userLocation) return userLocation;
+  if (userLocation && isInMorocco(userLocation)) return userLocation;
   if (salons.length) return { lat: salons[0].latitude, lng: salons[0].longitude };
   // Casablanca centre : le fond OSM reste utile même si un filtre ne renvoie aucun salon.
   return { lat: 33.6148, lng: -7.5128 };
 }
 
+function isInMorocco(position: Position) {
+  return position.lat >= MOROCCO_BOUNDS.south && position.lat <= MOROCCO_BOUNDS.north && position.lng >= MOROCCO_BOUNDS.west && position.lng <= MOROCCO_BOUNDS.east;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampAxis(value: number, min: number, max: number) {
+  return min <= max ? clamp(value, min, max) : (min + max) / 2;
 }
 
 function worldSize(zoom: number) {
@@ -95,6 +111,17 @@ function longitudeDelta(pointX: number, centerX: number, size: number) {
   if (delta > size / 2) delta -= size;
   if (delta < -size / 2) delta += size;
   return delta;
+}
+
+function clampMapCenter(position: Position, zoom: number, size: MapSize): Position {
+  const centerPoint = project(position, zoom);
+  const west = project({ lat: 0, lng: MOROCCO_BOUNDS.west }, zoom).x;
+  const east = project({ lat: 0, lng: MOROCCO_BOUNDS.east }, zoom).x;
+  const north = project({ lat: MOROCCO_BOUNDS.north, lng: 0 }, zoom).y;
+  const south = project({ lat: MOROCCO_BOUNDS.south, lng: 0 }, zoom).y;
+  const x = clampAxis(centerPoint.x, west + size.width / 2, east - size.width / 2);
+  const y = clampAxis(centerPoint.y, north + size.height / 2, south - size.height / 2);
+  return unproject({ x, y }, zoom);
 }
 
 function googleMarkerIcon(google: any, color: string, selected: boolean) {
@@ -131,21 +158,29 @@ function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center 
   useEffect(() => {
     if (contextRef.current === contextKey) return;
     contextRef.current = contextKey;
-    setView({ center, zoom: salons.length === 1 ? 15 : 13 });
-  }, [center, contextKey, salons.length]);
+    const zoom = salons.length === 1 ? 15 : 13;
+    setView({ center: clampMapCenter(center, zoom, size), zoom });
+  }, [center, contextKey, salons.length, size]);
 
   useEffect(() => {
     const selected = salons.find((salon) => salon.id === selectedId);
     if (!selected) return;
-    setView((current) => ({ ...current, center: { lat: selected.latitude, lng: selected.longitude } }));
-  }, [selectedId, salons]);
+    setView((current) => ({
+      ...current,
+      center: clampMapCenter({ lat: selected.latitude, lng: selected.longitude }, current.zoom, size),
+    }));
+  }, [selectedId, salons, size]);
 
   function changeZoom(delta: number) {
-    setView((current) => ({ ...current, zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM) }));
+    setView((current) => {
+      const zoom = clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM);
+      return { center: clampMapCenter(current.center, zoom, size), zoom };
+    });
   }
 
   function resetView() {
-    setView({ center, zoom: salons.length === 1 ? 15 : 13 });
+    const zoom = salons.length === 1 ? 15 : 13;
+    setView({ center: clampMapCenter(center, zoom, size), zoom });
   }
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -165,7 +200,8 @@ function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center 
     drag.y = event.clientY;
     setView((current) => {
       const centerPoint = project(current.center, current.zoom);
-      return { ...current, center: unproject({ x: centerPoint.x - dx, y: centerPoint.y - dy }, current.zoom) };
+      const nextCenter = unproject({ x: centerPoint.x - dx, y: centerPoint.y - dy }, current.zoom);
+      return { ...current, center: clampMapCenter(nextCenter, current.zoom, size) };
     });
   }
 
@@ -208,7 +244,9 @@ function InteractiveOsmMap({ salons, selectedId, userLocation, onSelect, center 
 
   const selected = salons.find((salon) => salon.id === selectedId);
   const selectedPosition = selected ? markerPosition(selected) : null;
-  const userPosition = userLocation ? markerPosition({ ...salons[0], id: '__user__', name: 'Ta position', slug: '', latitude: userLocation.lat, longitude: userLocation.lng }) : null;
+  const userPosition = userLocation && isInMorocco(userLocation)
+    ? markerPosition({ id: '__user__', name: 'Ta position', slug: '', neighborhood: '', city: '', latitude: userLocation.lat, longitude: userLocation.lng })
+    : null;
 
   return (
     <div
@@ -285,6 +323,11 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
       fullscreenControl: true,
       zoomControl: true,
       gestureHandling: 'greedy',
+      minZoom: MIN_ZOOM,
+      restriction: {
+        latLngBounds: MOROCCO_BOUNDS,
+        strictBounds: true,
+      },
       clickableIcons: false,
       styles: [
         { elementType: 'geometry', stylers: [{ color: '#24211d' }] },
@@ -355,7 +398,7 @@ export function SalonMap({ salons, selectedId, userLocation, onSelect }: Props) 
       {provider === 'google' && <div ref={googleContainer} className="real-google-map" aria-label="Carte Google Maps des salons" />}
       {provider === 'loading' && <div className="map-loading"><LocateFixed className="spin" /><span>Chargement de la carte…</span></div>}
       {provider === 'openstreetmap' && <InteractiveOsmMap salons={salons} selectedId={selectedId} userLocation={userLocation} onSelect={onSelect} center={center} />}
-      <div className="map-provider-badge">{provider === 'google' ? 'Google Maps · Maroc' : 'Carte réelle OpenStreetMap'} <span>·</span> {salons.length} point{salons.length > 1 ? 's' : ''}</div>
+      <div className="map-provider-badge">{provider === 'google' ? 'Google Maps · Maroc uniquement' : 'Carte réelle OpenStreetMap · Maroc'} <span>·</span> {salons.length} point{salons.length > 1 ? 's' : ''}</div>
       {provider === 'openstreetmap' && <a className="map-expand-link" href={`https://www.openstreetmap.org/?mlat=${center.lat}&mlon=${center.lng}#map=13/${center.lat}/${center.lng}`} target="_blank" rel="noreferrer"><ExternalLink size={12} /> Ouvrir en grand</a>}
     </div>
   );

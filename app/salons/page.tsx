@@ -335,7 +335,7 @@ export default function Salons() {
         <aside className={`salons-map-panel${mobileMap ? ' mobile-visible' : ''}`}>
           <div className="salons-map-panel-head"><div><span className="section-kicker">CARTE EN DIRECT</span><h2>{results.length} adresse{results.length > 1 ? 's' : ''} affichée{results.length > 1 ? 's' : ''}</h2></div><span className="map-legend"><i className="open-dot" /> Ouvert</span></div>
           <SalonMap salons={results} selectedId={selectedId} userLocation={userLocation} onSelect={selectSalon} />
-          <div className="salons-map-footer"><span><MapPin size={14} /> Clique sur un pin pour passer d’un salon à l’autre · positions déclarées par les partenaires.</span><a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Ouvrir Google Maps <ExternalLink size={12} /></a></div>
+          <div className="salons-map-footer"><span><MapPin size={14} /> Clique sur un pin pour passer d’un salon à l’autre · navigation limitée au Maroc.</span><a href="https://www.google.com/maps" target="_blank" rel="noreferrer">Ouvrir Google Maps <ExternalLink size={12} /></a></div>
         </aside>
       </section>
 
