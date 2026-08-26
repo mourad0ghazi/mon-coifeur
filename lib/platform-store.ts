@@ -309,11 +309,35 @@ function rowToAppt(row: any): Appointment {
   return { ...row, note: row.note ?? null };
 }
 
-export function createAppointment(input: AppointmentInput): { appointment: Appointment; conflict: boolean; replay: boolean } {
+// Un client peut réserver plusieurs créneaux à des heures différentes (par
+// exemple pour deux enfants), mais pas deux salons au même moment. Cette règle
+// évite les doubles réservations accidentelles et protège les coiffeurs.
+export function findClientTimeConflict(input: AppointmentInput): Appointment | null {
+  const buffer = 5;
+  const query = input.clientUserId
+    ? `SELECT * FROM appointments
+       WHERE date=? AND status IN ('CONFIRME','EN_ATTENTE','EN_COURS')
+       AND (client_user_id=? OR client_phone=?)
+       AND NOT (end_minutes + ? <= ? OR start_minutes - ? >= ?)
+       ORDER BY start_minutes LIMIT 1`
+    : `SELECT * FROM appointments
+       WHERE date=? AND status IN ('CONFIRME','EN_ATTENTE','EN_COURS')
+       AND client_phone=?
+       AND NOT (end_minutes + ? <= ? OR start_minutes - ? >= ?)
+       ORDER BY start_minutes LIMIT 1`;
+  const row = input.clientUserId
+    ? db.prepare(query).get(input.date, input.clientUserId, input.clientPhone, buffer, input.startMinutes, buffer, input.endMinutes)
+    : db.prepare(query).get(input.date, input.clientPhone, buffer, input.startMinutes, buffer, input.endMinutes);
+  return row ? rowToAppt(row) : null;
+}
+
+export function createAppointment(input: AppointmentInput): { appointment: Appointment; conflict: boolean; replay: boolean; clientConflict?: Appointment | null } {
   if (input.idempotencyKey) {
     const existing = db.prepare('SELECT * FROM appointments WHERE idempotency_key=?').get(input.idempotencyKey);
     if (existing) return { appointment: rowToAppt(existing), conflict: false, replay: true };
   }
+  const clientConflict = findClientTimeConflict(input);
+  if (clientConflict) return { appointment: null as any, conflict: false, replay: false, clientConflict };
   // conflict detection — mirror the 5-minute buffer used when generating slots
   const buffer = 5;
   const clash = db.prepare(

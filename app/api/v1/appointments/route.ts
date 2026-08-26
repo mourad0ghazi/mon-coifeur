@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireSession } from '@/lib/api-guard';
+import { normalizePhone } from '@/lib/auth-store';
 import { createAppointment, listAppointmentsByBarber, listAppointmentsByClient } from '@/lib/platform-store';
 import { BARBER_HOURS } from '@/lib/barbers';
 
@@ -95,13 +96,14 @@ export async function POST(req: NextRequest) {
   }
 
   const user = await requireSession();
+  const normalizedClientPhone = normalizePhone(x.clientPhone);
   const result = createAppointment({
     barberId: x.barberId,
     barberName: barber.name,
     salonName: barber.salon,
     salonNeighborhood: barber.neighborhood,
     clientUserId: user?.sub || null,
-    clientPhone: x.clientPhone.replace(/ /g, ''),
+    clientPhone: normalizedClientPhone,
     clientName: x.clientName || user?.name || null,
     date: x.date,
     startMinutes: h * 60 + m,
@@ -112,6 +114,17 @@ export async function POST(req: NextRequest) {
     note: x.clientNote,
     idempotencyKey: key,
   });
+  if (result.clientConflict) {
+    const conflict = result.clientConflict;
+    return NextResponse.json(
+      {
+        error: 'CLIENT_TIME_CONFLICT',
+        message: `Tu as déjà un rendez-vous à ${String(Math.floor(conflict.start_minutes / 60)).padStart(2, '0')}h${String(conflict.start_minutes % 60).padStart(2, '0')} chez ${conflict.salon_name}. Une seule réservation sur un créneau qui se chevauche est autorisée ; tu peux réserver plusieurs horaires différents.`,
+        conflict: { reference: conflict.reference, salonName: conflict.salon_name, date: conflict.date },
+      },
+      { status: 409 }
+    );
+  }
   if (result.conflict) {
     return NextResponse.json(
       { error: 'SLOT_UNAVAILABLE', message: 'Ce créneau vient d’être réservé. Choisis une autre heure.' },

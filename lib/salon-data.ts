@@ -23,6 +23,9 @@ export type Salon = {
   specialties: string[];
   nextSlot?: { date: string; time: string; label: string } | null;
   distanceKm?: number;
+  latitude: number;
+  longitude: number;
+  whatsapp?: string;
   image: string;
 };
 
@@ -33,13 +36,14 @@ const CLOSED: HoursDay = { closed: true };
 
 // État d'ouverture calculé à partir des horaires du salon.
 export function getOpenStatus(hours: WeekHours, now = new Date()) {
-  // JS: 0=Dimanche ... 6=Samedi → on veut 0=Lundi
-  const day = (now.getDay() + 6) % 7;
-  const tod = now.getHours() * 60 + now.getMinutes();
+  // Toujours utiliser l'heure locale du Maroc, même si le serveur est en UTC.
+  const clock = moroccoClock(now);
+  const day = clock.day;
+  const tod = clock.minutes;
   const today = hours[day];
   if (today.closed || today.open == null || today.close == null) {
     // trouve le prochain jour d'ouverture
-    const next = nextOpening(hours, now);
+    const next = nextOpening(hours, clock.date);
     return { open: false, nextChange: next, label: next ? `Ouvre ${next.label} à ${next.time}` : 'Fermé' };
   }
   if (tod < today.open) {
@@ -49,10 +53,32 @@ export function getOpenStatus(hours: WeekHours, now = new Date()) {
     return { open: false, pause: true, nextChange: { day, time: fmtHM(today.breakEnd) }, label: `Reprend à ${fmtHM(today.breakEnd)}` };
   }
   if (tod >= today.close) {
-    const next = nextOpening(hours, now);
+    const next = nextOpening(hours, clock.date);
     return { open: false, nextChange: next, label: next ? `Ouvre ${next.label} à ${next.time}` : 'Fermé' };
   }
   return { open: true, until: fmtHM(today.close), label: `Ouvert jusqu'à ${fmtHM(today.close)}` };
+}
+
+function moroccoClock(now: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Casablanca',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0);
+  const year = get('year');
+  const month = get('month');
+  const dayOfMonth = get('day');
+  const date = new Date(year, month - 1, dayOfMonth, 12, 0, 0);
+  return {
+    minutes: (get('hour') % 24) * 60 + get('minute'),
+    day: (date.getDay() + 6) % 7,
+    date,
+  };
 }
 
 function nextOpening(hours: WeekHours, now: Date) {
@@ -88,6 +114,9 @@ export const SALONS: Salon[] = [
       { id: 'enfant', label: 'Coupe enfant', duration: 30, price: 40, gender: 'ENFANT' },
     ],
     distanceKm: 0.8,
+    latitude: 33.6167,
+    longitude: -7.5011,
+    whatsapp: '+212611111111',
   },
   {
     id: 'salon-nour', slug: 'salon-nour', name: 'Salon Nour', barberName: 'Ayoub Mansouri',
@@ -102,6 +131,9 @@ export const SALONS: Salon[] = [
       { id: 'barbe', label: 'Taille de barbe', duration: 20, price: 25, gender: 'HOMME' },
     ],
     distanceKm: 1.2,
+    latitude: 33.6141,
+    longitude: -7.4938,
+    whatsapp: '+212622222222',
   },
   {
     id: 'studio-hk', slug: 'studio-hk', name: 'Studio HK', barberName: 'Hamza K.',
@@ -116,6 +148,9 @@ export const SALONS: Salon[] = [
       { id: 'enfant', label: 'Coupe enfant', duration: 30, price: 30, gender: 'ENFANT' },
     ],
     distanceKm: 2.4,
+    latitude: 33.6088,
+    longitude: -7.5329,
+    whatsapp: '+212622222222',
   },
   {
     id: 'barber-21', slug: 'barber-21', name: 'Barber 21', barberName: 'Othmane Idrissi',
@@ -129,6 +164,9 @@ export const SALONS: Salon[] = [
       { id: 'barbe', label: 'Taille de barbe', duration: 25, price: 35, gender: 'HOMME' },
     ],
     distanceKm: 3.1,
+    latitude: 33.6035,
+    longitude: -7.5262,
+    whatsapp: '+212633333333',
   },
 ];
 
@@ -156,6 +194,9 @@ export function searchSalons(filters: {
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.barberName.toLowerCase().includes(q) ||
+        s.address.toLowerCase().includes(q) ||
+        s.city.toLowerCase().includes(q) ||
+        s.neighborhood.toLowerCase().includes(q) ||
         s.specialties.some((x) => x.toLowerCase().includes(q))
     );
   }
