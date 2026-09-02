@@ -1,0 +1,21 @@
+services:
+  web:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ./:/app
+      # keep container-installed deps/build out of the bind mount
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    environment:
+      # node:sqlite is still flagged experimental on Node 22
+      - NODE_OPTIONS=--experimental-sqlite
+      - TZ=Africa/Casablanca
+      - BASE44_PUBLIC_HOST_SUFFIX=${BASE44_PUBLIC_HOST_SUFFIX}
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
