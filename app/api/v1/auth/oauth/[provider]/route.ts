@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   const token = await createSessionToken(user);
   const destination =
     user.role === 'COIFFEUR' ? (user.status === 'ACTIF' ? '/pro' : '/devenir-partenaire') : '/mon-compte';
-  const response = NextResponse.redirect(new URL(destination, process.env.NEXT_PUBLIC_APP_URL || req.url));
+  const response = NextResponse.redirect(new URL(destination, req.url));
   response.cookies.set(AUTH_COOKIE, token, sessionCookieOptions);
   return response;
 }

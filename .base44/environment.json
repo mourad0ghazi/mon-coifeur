@@ -2,5 +2,15 @@
   "previewPort": 3000,
   "healthPath": "/",
   "startCommand": "docker compose -f docker-compose.base44.yml up -d",
-  "secrets": []
+  "secrets": [
+    { "name": "GOOGLE_CLIENT_ID", "description": "ID client OAuth Google (Google Cloud Console)", "requiredAtBoot": false },
+    { "name": "GOOGLE_CLIENT_SECRET", "description": "Secret client OAuth Google", "requiredAtBoot": false },
+    { "name": "FACEBOOK_CLIENT_ID", "description": "ID de l'app Facebook Login (Meta for Developers)", "requiredAtBoot": false },
+    { "name": "FACEBOOK_CLIENT_SECRET", "description": "Clé secrète de l'app Facebook Login", "requiredAtBoot": false },
+    { "name": "APPLE_CLIENT_ID", "description": "Service ID Sign in with Apple (Apple Developer)", "requiredAtBoot": false },
+    { "name": "APPLE_CLIENT_SECRET", "description": "Secret client Apple (optionnel si TEAM_ID/KEY_ID/PRIVATE_KEY fournis)", "requiredAtBoot": false },
+    { "name": "APPLE_TEAM_ID", "description": "Team ID Apple pour générer le secret JWT", "requiredAtBoot": false },
+    { "name": "APPLE_KEY_ID", "description": "Key ID de la clé Sign in with Apple", "requiredAtBoot": false },
+    { "name": "APPLE_PRIVATE_KEY", "description": "Clé privée ES256 Apple au format PKCS8 PEM", "requiredAtBoot": false }
+  ]
 }

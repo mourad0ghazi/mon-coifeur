@@ -12,7 +12,7 @@ function destinationFor(role: AuthRole, status: string): string {
 }
 
 function errorRedirect(reason: string, req: NextRequest): NextResponse {
-  return NextResponse.redirect(new URL(`/connexion?erreur=${reason}`, process.env.NEXT_PUBLIC_APP_URL || req.url));
+  return NextResponse.redirect(new URL(`/connexion?erreur=${reason}`, req.url));
 }
 
 /**
@@ -63,9 +63,7 @@ async function complete(req: NextRequest, provider: Provider): Promise<NextRespo
 
   const user = findOrCreateOAuthUserByProfile(provider, role, profile);
   const token = await createSessionToken(user);
-  const response = NextResponse.redirect(
-    new URL(destinationFor(user.role, user.status), process.env.NEXT_PUBLIC_APP_URL || req.url),
-  );
+  const response = NextResponse.redirect(new URL(destinationFor(user.role, user.status), req.url));
   response.cookies.set(AUTH_COOKIE, token, sessionCookieOptions);
   response.cookies.delete(OAUTH_STATE_COOKIE);
   return response;
