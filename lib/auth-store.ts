@@ -105,6 +105,31 @@ export function registerUser(input: RegistrationInput) {
   return { user: rowToUser(db.prepare('SELECT * FROM auth_users WHERE id=?').get(id)), existed: false } as const;
 }
 export function findOrCreateOAuthUser(provider:'google'|'facebook'|'apple',role:AuthRole='CLIENT'){const providerId=`${provider}-demo-user`;const linked=db.prepare('SELECT u.* FROM oauth_accounts o JOIN auth_users u ON u.id=o.user_id WHERE o.provider=? AND o.provider_account_id=?').get(provider,providerId);if(linked)return rowToUser(linked);const names={google:'Yassine Google',facebook:'Amine Facebook',apple:'Utilisateur Apple'};const id=randomUUID(),phone=`oauth:${provider}:${providerId}`,status=role==='COIFFEUR'?'EN_ATTENTE':'ACTIF';db.prepare('INSERT INTO auth_users(id,phone,name,role,status,created_at,email,avatar_url) VALUES(?,?,?,?,?,?,?,?)').run(id,phone,names[provider],role,status,new Date().toISOString(),`${provider}.demo@hlaqti.ma`,null);db.prepare('INSERT INTO oauth_accounts(user_id,provider,provider_account_id,created_at) VALUES(?,?,?,?)').run(id,provider,providerId,new Date().toISOString());return rowToUser(db.prepare('SELECT * FROM auth_users WHERE id=?').get(id))}
+
+/** Create or link a user from a REAL OAuth profile returned by the provider. */
+export function findOrCreateOAuthUserByProfile(
+  provider: 'google' | 'facebook' | 'apple',
+  role: AuthRole,
+  profile: { providerAccountId: string; name: string; email: string | null; avatar: string | null },
+) {
+  const linked = db
+    .prepare('SELECT u.* FROM oauth_accounts o JOIN auth_users u ON u.id=o.user_id WHERE o.provider=? AND o.provider_account_id=?')
+    .get(provider, profile.providerAccountId) as any;
+  if (linked) {
+    db.prepare('INSERT INTO auth_events(user_id,action,created_at) VALUES(?,?,?)').run(linked.id, `LOGIN_OAUTH_${provider.toUpperCase()}`, new Date().toISOString());
+    return rowToUser(linked);
+  }
+  const id = randomUUID();
+  const ts = new Date().toISOString();
+  const phone = `oauth:${provider}:${profile.providerAccountId}`;
+  const status = role === 'COIFFEUR' ? 'EN_ATTENTE' : 'ACTIF';
+  db.prepare('INSERT INTO auth_users(id,phone,name,role,status,created_at,email,avatar_url) VALUES(?,?,?,?,?,?,?,?)')
+    .run(id, phone, profile.name, role, status, ts, profile.email, profile.avatar);
+  db.prepare('INSERT INTO oauth_accounts(user_id,provider,provider_account_id,created_at) VALUES(?,?,?,?)')
+    .run(id, provider, profile.providerAccountId, ts);
+  db.prepare('INSERT INTO auth_events(user_id,action,created_at) VALUES(?,?,?)').run(id, `ACCOUNT_OAUTH_${provider.toUpperCase()}`, ts);
+  return rowToUser(db.prepare('SELECT * FROM auth_users WHERE id=?').get(id));
+}
 export function getProfile(userId:string){return db.prepare('SELECT id,name,phone,email,role,status,locale,cut_preferences,avatar_url,birth_year,gender,created_at FROM auth_users WHERE id=?').get(userId) as any}
 
 // ---------- Admin user management ----------
